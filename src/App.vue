@@ -137,6 +137,7 @@ export default {
     },
     async test() {
       const fs = window.require("fs");
+      if (this.username == "") return (this.dialogErr = true);
       let animeWatched = document.getElementById("animeWatched").files[0].path;
       let animeFinished = document.getElementById("animeFinished").files[0]
         .path;
@@ -144,12 +145,13 @@ export default {
       let split = animeWatched.split("\\");
       animeWatched = split[2];
 
-      let mainPath = split[0] + "/" + split[1] +"/";
+      let mainPath = split[0] + "/" + split[1] + "/";
 
       split = animeFinished.split("\\");
       animeFinished = split[2];
 
-      if (mainPath != split[0] + "/" + split[1] + "/") return (this.dialogErr = true);
+      if (mainPath != split[0] + "/" + split[1] + "/")
+        return (this.dialogErr = true);
 
       const user = this.username;
       const userVerified = await this.getUser(user);
@@ -169,7 +171,7 @@ export default {
         })
       );
       this.dialog = false;
-      window.location.reload()
+      window.location.reload();
     },
     go(where) {
       switch (where) {
