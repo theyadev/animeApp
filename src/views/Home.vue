@@ -10,7 +10,7 @@
       ></v-text-field>
     </div>
     <div v-for="anime in animes" :key="anime.titre" class="mx-auto mt-2 mb-2">
-      <div v-if="anime.titre.includes(search)">
+      <div v-if="anime.titre.toLowerCase().includes(search.toLowerCase())">
         <h2 v-if="anime.media != null" class="text-center">
           {{ anime.media.media.title.romaji }}
         </h2>
@@ -64,15 +64,31 @@ export default {
   data() {
     return {
       search: "",
-      folders: [],
       animes: [],
     };
   },
   methods: {
+    async timeoutList() {
+      let list = await this.$store.state.getList();
+      setTimeout(() => {
+        if (list == null) {
+          return false;
+        }
+      }, 10000);
+      if (list == null) {
+        const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+        await delay(5000);
+        list = await this.timeoutList();
+      }
+      return list;
+    },
     init: async function() {
-      const list = await this.$store.state.getList();
+      let list = await this.timeoutList();
+      const listIndex = list.findIndex((e) =>
+        e.entries.some((y) => y.status == "CURRENT")
+      );
       this.animes.forEach((anime, index) => {
-        const i = list[8].entries.findIndex(
+        const i = list[listIndex].entries.findIndex(
           (e) =>
             e.media.title.romaji
               .toLowerCase()
@@ -85,17 +101,20 @@ export default {
             )
         );
         if (index == -1) return;
-        this.animes[index].media = list[8].entries[i];
+        this.animes[index].media = list[listIndex].entries[i];
       });
     },
     getFolder(fs, nomDossier, from) {
-      const x = fs.readdirSync("D:/Anime/" + nomDossier);
+      const x = fs.readdirSync(
+        this.$store.state.path.trim() + nomDossier.trim()
+      );
       x.forEach((titre) => {
         if (this.animes.some((e) => e.titre == titre)) return;
         if (titre.startsWith("--ignore")) return;
         const extSplit1 = titre.split(".");
         if (extSplit1.length == 2) return;
-        const path = "D:/Anime/" + nomDossier + "/" + titre;
+        const path =
+          this.$store.state.path.trim() + nomDossier.trim() + "/" + titre;
         const episodes = fs.readdirSync(path);
         if (episodes.length == 0) return;
         let animeEps = [];
@@ -131,10 +150,8 @@ export default {
   },
   mounted() {
     const fs = window.require("fs");
-    this.folders = fs.readdirSync("D:/Anime");
-    this.folders.length -= 1;
-    this.folders.forEach((nomDossier) => {
-      if (nomDossier != "Anime TV (En Cours)") return;
+    this.$store.state.folders.forEach((nomDossier) => {
+      if (nomDossier != this.$store.state.foldersDetails.watching) return;
       this.getFolder(fs, nomDossier);
     });
     this.init();

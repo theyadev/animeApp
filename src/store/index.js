@@ -5,6 +5,9 @@ Vue.use(Vuex);
 
 export default new Vuex.Store({
   state: {
+    folders: [],
+    configFolderPath: "C:/Users/fassi/Documents/AnimeApp/",
+    configFileName: "config.json",
     open: function(path) {
       const { shell } = window.require("electron");
       shell.openPath(path);
@@ -50,68 +53,78 @@ export default new Vuex.Store({
       }
       return g[0];
     },
-    getList: function() {
-      const query = `
-       query ($userName: String, $type: MediaType) {
-  anime: MediaListCollection(userName: $userName, type: $type) {
-    lists {
-      entries {
-        status
-        progress
-        media {
-          type
-          id
-          bannerImage
-          coverImage {
-            extraLarge
-            large
-            medium
-            color
-          }
-          title {
-            romaji
-            english
-          }
-          format
-          synonyms
-          description
-    averageScore
-    genres
-        }
-      }
-    }
-  }
-}
-`;
-
-      return fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          query: query,
-          variables: { userName: "Theya", type: "ANIME" },
-        }),
-      })
-        .then(handleResponse)
-        .then(handleData)
-        .catch(handleError);
-
+    getList: async function() {
+      return this.list;
+    },
+    queryRequest(user) {
       function handleResponse(response) {
         return response.json().then(function(json) {
           return response.ok ? json : Promise.reject(json);
         });
       }
-
-      function handleData(data) {
-        return data.data.anime.lists;
+      function handleData(list) {
+        return list.data.anime.lists
+        
       }
 
       function handleError() {
-        return null;
+        return false
       }
+      const query = `
+        query ($userName: String, $type: MediaType) {
+      anime: MediaListCollection(userName: $userName, type: $type) {
+      lists {
+       entries {
+         status
+         progress
+         media {
+           type
+           id
+           bannerImage
+           coverImage {
+             extraLarge
+             large
+             medium
+             color
+           }
+           title {
+             romaji
+             english
+           }
+           format
+           synonyms
+           description
+      averageScore
+      genres
+         }
+       }
+      }
+      }
+      }
+      `;
+
+      // Define our query variables and values that will be used in the query request
+      var variables = { userName: user, type: "ANIME" };
+
+      // Define the config we'll need for our Api request
+      var url = "https://graphql.anilist.co",
+        options = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            query: query,
+            variables: variables,
+          }),
+        };
+
+      // Make the HTTP Api request
+      return fetch(url, options)
+        .then(handleResponse)
+        .then(handleData)
+        .catch(handleError);
     },
   },
   mutations: {},
