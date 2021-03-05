@@ -66,7 +66,11 @@
         <v-icon>mdi-cog</v-icon>
         <span class="ml-2">Settings</span>
       </v-btn>
-      <v-spacer style="margin-right:-110px"></v-spacer>
+      <v-btn text @click="update" :loading="updateing">
+        <v-icon>mdi-update</v-icon>
+        <span class="ml-2">Update Anilist</span>
+      </v-btn>
+      <v-spacer></v-spacer>
       <div>
         <v-btn
           dense
@@ -77,7 +81,6 @@
           >{{ folder }}</v-btn
         >
       </div>
-      <v-spacer></v-spacer>
     </v-app-bar>
 
     <v-main>
@@ -94,9 +97,27 @@ export default {
       dialogErr: false,
       dialog: false,
       username: "",
+      updateing: false,
     };
   },
   methods: {
+    async update() {
+      if (this.updateing == true) return console.log("already");
+      this.updateing = true;
+      const fs = window.require("fs");
+      fs.writeFileSync(
+        this.$store.state.configFolderPath + this.$store.state.configFileName,
+        JSON.stringify({
+          user: this.$store.state.user,
+          path: this.$store.state.path,
+          folders: this.$store.state.folders,
+          foldersDetails: this.$store.state.foldersDetails,
+          list: await this.$store.state.queryRequest(this.$store.state.user),
+        })
+      );
+      this.updateing = false;
+      window.location.reload();
+    },
     getUser(user) {
       const query = `
       query ($userName: String) {

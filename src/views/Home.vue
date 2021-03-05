@@ -8,6 +8,10 @@
         prepend-icon="mdi-magnify"
         v-model="search"
       ></v-text-field>
+      <v-btn text @click="refresh" class="mt-4">
+        <v-icon>mdi-update</v-icon>
+        <span class="ml-2">Refresh Folder</span>
+      </v-btn>
     </div>
     <div v-for="anime in animes" :key="anime.titre" class="mx-auto mt-2 mb-2">
       <div v-if="anime.titre.toLowerCase().includes(search.toLowerCase())">
@@ -65,9 +69,23 @@ export default {
     return {
       search: "",
       animes: [],
+      newAnimes: [],
     };
   },
   methods: {
+    async refresh() {
+      this.newAnimes = [];
+      const fs = window.require("fs");
+
+      this.$store.state.folders.forEach((nomDossier) => {
+        if (nomDossier != this.$store.state.foldersDetails.watching) return;
+        this.getFolder(fs, nomDossier, null, true);
+      });
+      await this.init(this.newAnimes, true);
+      if (this.animes == this.newAnimes) return;
+
+      this.animes = this.newAnimes;
+    },
     async timeoutList() {
       let list = await this.$store.state.getList();
       setTimeout(() => {
@@ -82,12 +100,12 @@ export default {
       }
       return list;
     },
-    init: async function() {
+    init: async function(animes, state) {
       let list = await this.timeoutList();
       const listIndex = list.findIndex((e) =>
         e.entries.some((y) => y.status == "CURRENT")
       );
-      this.animes.forEach((anime, index) => {
+      animes.forEach((anime, index) => {
         const i = list[listIndex].entries.findIndex(
           (e) =>
             e.media.title.romaji
@@ -101,27 +119,38 @@ export default {
             )
         );
         if (index == -1) return;
-        this.animes[index].media = list[listIndex].entries[i];
+        animes[index].media = list[listIndex].entries[i];
       });
+      if (state == true) {
+        this.newAnimes = animes;
+      } else this.animes = animes;
     },
     getFolder(fs, nomDossier, from) {
       const x = fs.readdirSync(
         this.$store.state.path.trim() + nomDossier.trim()
       );
+      this.newAnimes = [];
       x.forEach((titre) => {
-        if (this.animes.some((e) => e.titre == titre)) return;
+        if (this.newAnimes.some((e) => e.titre == titre)) return;
         if (titre.startsWith("--ignore")) return;
         const extSplit1 = titre.split(".");
         if (extSplit1.length == 2) return;
         const path =
           this.$store.state.path.trim() + nomDossier.trim() + "/" + titre;
+
         const episodes = fs.readdirSync(path);
-        if (episodes.length == 0) return;
+
+        if (
+          episodes.length == 0 ||
+          (episodes.length == 1 && episodes.includes("desktop.ini"))
+        )
+          return;
         let animeEps = [];
         episodes.forEach((ep) => {
+          if (ep.startsWith("--ignore")) return;
           const extSplit = ep.split(".");
           if (extSplit.length == 1)
-            return this.getFolder(fs, nomDossier + "/" + titre, titre);
+            return this.getFolder(fs, nomDossier + "/" + titre, titre, false);
 
           if (ep == "desktop.ini") return;
           if (!ep.endsWith(".mkv") && !ep.endsWith(".mp4")) return;
@@ -138,7 +167,7 @@ export default {
           return a.epIndex - b.epIndex;
         });
 
-        this.animes.push({
+        this.newAnimes.push({
           titre,
           episodes: animeEps,
           path,
@@ -146,15 +175,21 @@ export default {
           from: from ? from : null,
         });
       });
+
+      if (this.newAnimes.length == this.animes.length && this.animes != []) {
+        console.log();
+      } else {
+        this.animes = this.newAnimes;
+      }
     },
   },
   mounted() {
     const fs = window.require("fs");
     this.$store.state.folders.forEach((nomDossier) => {
       if (nomDossier != this.$store.state.foldersDetails.watching) return;
-      this.getFolder(fs, nomDossier);
+      this.getFolder(fs, nomDossier, null, false);
     });
-    this.init();
+    this.init(this.animes);
   },
 };
 </script>
